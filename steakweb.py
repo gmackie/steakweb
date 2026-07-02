@@ -76,22 +76,21 @@ async def homepage(request):
     return r
 
 async def directory(request):
-    # display all published extensions
-    session = await aiohttp_session.get_session(request)
-    check_session_exp(session)
+    # public listing of published extensions (no auth)
     if dbconn is None:
         await init_db_pool()
-    rows = None
-    rows = await dbconn.fetch("SELECT extn, name FROM registered_extensions WHERE publish = 't'")
+    rows = await dbconn.fetch("SELECT extn, name FROM registered_extensions WHERE publish = 't' ORDER BY lower(name), extn")
+    context = { 'extensions': rows }
+    return aiohttp_jinja2.render_template('directory.html', request, context)
 
-    # render the template with the list and the status of the last request (from the session)
-    context = { 'extensions': rows, 'error': session.get('error', None), 'attributes': session.get('attributes', None) }
-    r = aiohttp_jinja2.render_template('homepage.html', request, context)
 
-    # clear the status
-    session['error'] = None
-
-    return r
+async def directory_json(request):
+    # public JSON of published extensions (no auth); consumable by shady.tel
+    if dbconn is None:
+        await init_db_pool()
+    rows = await dbconn.fetch("SELECT extn, name FROM registered_extensions WHERE publish = 't' ORDER BY lower(name), extn")
+    listings = [{ 'name': r['name'], 'number': r['extn'] } for r in rows]
+    return web.json_response(listings, headers={'Access-Control-Allow-Origin': '*'})
 
 ### post request handlers
 
@@ -128,7 +127,7 @@ async def delete_extn(request):
     if check_auth_isadmin(session):
         n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1', int(data['extn']))
     else:
-        n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1 AND userid = $2', data['name'], int(data['extn']), int(session['uid']))
+        n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1 AND userid = $2', int(data['extn']), int(session['uid']))
 
     if n != 'DELETE 1':
         session['error'] = 'Could not unsubscribe service; contact support'
@@ -138,33 +137,41 @@ async def delete_extn(request):
 
 async def create_extn(request):
     # make a new extension with a random auth_code
-    # if the DB doesn't like it, give the error in session[error]
+    # validate the submitted extension up front so bad input (e.g. letters)
+    # gives the customer an error instead of a 500
     data = await request.post()
     session = await aiohttp_session.get_session(request)
     check_session_exp(session)
 
-    extnum = int(data['extn'])
+    extn = data.get('extn', '').strip()
+      if not (len(extn) == 4 and extn.isascii() and extn.isdigit()):
+        session['error'] = 'Extension must be a four-digit number'
+        raise web.HTTPFound('/')
+    extnum = int(extn)
     if extnum < 2000 or extnum >= 7000:
-        session['error'] = 'Invalid extension number'
+        session['error'] = 'Extension number must start with 2, 3, 4, 5, or 6'
         raise web.HTTPFound('/')
 
     if dbconn is None:
         await init_db_pool()
 
-    if data['type'] == 'sip':
+    name = data.get('name', '')
+    publish = 't' if data.get('publish') else 'f'
+        if data['type'] == 'sip':
         switch = 11
         authcode = gen_sip_pw()
     else:
         switch = None
-        authcode = ''.join([str(secrets.randbelow(10)) for _ in range(12)])
+        authcode = f'{secrets.randbelow(1000000000000):012d}'
+
     try:
-        n = await dbconn.execute('INSERT INTO registered_extensions (extn, name, userid, auth_code, publish, switch) VALUES ($1, $2, $3, $4, $5, $6)', extnum, data['name'], int(session['uid']), authcode, data.get('publish', '1') == '1', switch)
-        if n != 'INSERT 0 1':
-            session['error'] = 'Could not subscribe service; contact support'
-            print(f'While creating extension: {n}')
-    except asyncpg.UniqueViolationError as e:
-        session['error'] = f'Extension {extnum} already exists'
-        print(f'While creating extension: {e}')
+        n = await dbconn.execute('INSERT INTO registered_extensions (extn, name, userid, auth_code, publish, switch) VALUES ($1, $2, $3, $4, $5, $6)', extnum, name, int(session['uid']), authcode, publish, switch)
+    except asyncpg.UniqueViolationError:
+        session['error'] = f'Extension {extnum} is already taken; please choose another'
+        raise web.HTTPFound('/')
+    if n != 'INSERT 0 1':
+        session['error'] = 'Could not subscribe service; contact support'
+        print(f'While creating extension: {n}')
 
     raise web.HTTPFound('/')
 
@@ -260,6 +267,7 @@ if __name__ == '__main__':
 
     app.add_routes([web.get('/', homepage)])
     app.add_routes([web.get('/directory', directory)])
+    app.add_routes([web.get('/api/directory.json', directory_json)])
 
     app.add_routes([web.post('/rename_extn', rename_extn)])
     app.add_routes([web.post('/delete_extn', delete_extn)])

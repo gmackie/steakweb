@@ -61,8 +61,7 @@
 <h3>Add a New Extension</h3>
 <form action="/create_extn" method="post">
   <label for="extn">Extension:</label>
-  <input type="text" name="extn" placeholder="NXXX" maxlength="4" minlength="4" required>
-  <br />
+  <input type="text" name="extn" placeholder="NXXX" maxlength="4" minlength="4" pattern="[2-6][0-9]{3}" title="Four digits starting with 2, 3, 4, 5, or 6" required>
   <label for="name">Name:</label>
   <input type="text" name="name" placeholder="Name" required>
   <br />

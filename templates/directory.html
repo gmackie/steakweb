@@ -1,26 +1,29 @@
 {% extends "site.html" %}
-{% block title %}Shadytel Telephony Enrollment &amp; Activation Kit: Directory{% endblock title %}
-{% block headline %}Shadytel Telephony Enrollment &amp; Activation Kit{% endblock headline %}
+{% block title %}Shadytel Telephony Enrollment &amp; Activation Kit: Directory Assistance{% endblock title %}
+{% block headline %}Shadytel Telephony Enrollment &amp; Activation Kit: Directory Assistance{% endblock headline %}
 
 {% block body %}
+<p>A listing of published numbers on the Shadytel network. Dial any listing from any Shadytel telephone.</p>
+
+{% if extensions %}
 <h3>Directory</h3>
 <table border="1">
   <tr>
-    <th>Extension</th>
     <th>Name</th>
-    <th>Actions</th>
+    <th>Number</th>
   </tr>
   {% for e in extensions %}
     <tr>
-      <td><a href="tel:{{e["extn"]}}">{{e["extn"]}}</a></td>
+      <td>{{e["name"]}}</td>
       <td>
-        {{e["name"]}}
-      </td>
-      <td>
+        <a href="tel:{{e["extn"]}}">{{e["extn"]}}</a>
+        <button onclick="window.dialer.dialDTMF('{{e["extn"]}}')">Dial</button>
       </td>
     </tr>
   {% endfor %}
   </table>
+{% else %}
+  <p>No listings have been published yet.</p>
 {% endif %}
 
 {% endblock body %}

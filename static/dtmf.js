@@ -114,7 +114,13 @@ export class Dialer {
     }
 
     dial(tonePairType, str) {
-        let digitStartTime = 0;
+        // The AudioContext clock keeps advancing, so schedule relative to "now".
+        // A fixed 0 base means every call after the first schedules tones in the
+        // past, which Web Audio renders as silence.
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        let digitStartTime = this.audioContext.currentTime;
 
         for (let i = 0; i < str.length; i++) {
             new tonePairType(this.audioContext, this.gainNode, 
