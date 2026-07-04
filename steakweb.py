@@ -144,7 +144,7 @@ async def create_extn(request):
     check_session_exp(session)
 
     extn = data.get('extn', '').strip()
-      if not (len(extn) == 4 and extn.isascii() and extn.isdigit()):
+    if not (len(extn) == 4 and extn.isascii() and extn.isdigit()):
         session['error'] = 'Extension must be a four-digit number'
         raise web.HTTPFound('/')
     extnum = int(extn)
@@ -157,7 +157,7 @@ async def create_extn(request):
 
     name = data.get('name', '')
     publish = 't' if data.get('publish') else 'f'
-        if data['type'] == 'sip':
+    if data['type'] == 'sip':
         switch = 11
         authcode = gen_sip_pw()
     else:
