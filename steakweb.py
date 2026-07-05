@@ -321,8 +321,15 @@ async def saml_acs(request):
 
 async def init_db_pool():
     global dbconn
-    dbconn = await asyncpg.create_pool(dsn=dbconnstr)
-    print(f'dbconn: {dbconn}')
+    # OMNIDAT shares fryos_production Postgres; keep steak tables in their own
+    # schema. Setting search_path lets upstream's unqualified `registered_extensions`
+    # queries resolve to steak.registered_extensions without touching omnidat/fryos.
+    server_settings = {}
+    db_schema = config.get('db_schema', '')
+    if db_schema:
+        server_settings['search_path'] = db_schema
+    dbconn = await asyncpg.create_pool(dsn=dbconnstr, server_settings=server_settings or None)
+    print(f'dbconn: {dbconn} (search_path={db_schema or "default"})')
 
 async def init_saml_settings():
     global SAML_SETTINGS

@@ -4,14 +4,17 @@ The SAML-authenticated portal is this Python/aiohttp app (upstream steakweb).
 Unlike the zero-infra edge worker (`shadydect:web/steak/`), it needs three things:
 a Postgres DB, a SAML IdP, and a node to run on.
 
-## 1. Postgres
-Create the DB + schema:
+## 1. Postgres — DONE (shares OMNIDAT's database)
+steak uses **OMNIDAT's shared Postgres** (`fryos_production` on hetzner-master),
+in its **own `steak` schema** so it never touches omnidat/fryos tables. The schema
+is already applied:
 ```bash
-forge db create              # OMNIDAT shared Postgres; note the DSN
-psql "$DSN" -f schema.sql            # upstream table (if not present)
-psql "$DSN" -f schema.omnidat.sql    # + DECT columns (ipui, handset_id)
+DSN=$(~/.forgegraph/bin/fg db url --app fryos)   # the shared DSN
+psql "$DSN" -f schema.postgres.sql               # creates schema steak + registered_extensions
 ```
-Put the DSN in `config.json` (`dbconnstr`).
+In `config.json`: set `dbconnstr` to that DSN and `db_schema` to `steak`
+(the app sets `search_path=steak`, so upstream's unqualified queries resolve
+there). No `forge db create` — the DB is shared.
 
 ## 2. SAML IdP  (the piece that needs the IdP admin)
 This app is a SAML **Service Provider**. Register it in the OMNIDAT Authentik

@@ -23,7 +23,8 @@
         "script_name": "/"
     },
     "socket_path": "path to activation-server socket",
-    "dbconnstr": "postgresql://CONNECTION STRING (OMNIDAT shared postgres)",
+    "dbconnstr": "postgres://fryos_production_app:...@100.101.32.120:5432/fryos_production?sslmode=disable",
+    "db_schema": "steak",
     "cookiekey": "32 base64-encoded bytes",
     "idp_metadata": "https://identity.omnidat.cc/application/saml/steak/metadata/",
     "api_token": "shared secret matching the shadydect node SHADYDECT_STEAK_API_TOKEN"
