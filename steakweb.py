@@ -29,6 +29,10 @@ socketpath = config['socket_path']
 dbconnstr = config['dbconnstr']
 cookiekey = config['cookiekey']
 IDP_METADATA = config['idp_metadata']
+# OMNIDAT: shared secret the shadydect/omniDECT node uses for the *77 provisioning
+# API (parity with the edge worker's API_TOKEN). Human auth stays SAML; the node
+# is a trusted machine caller and presents this token instead.
+api_token = config.get('api_token', '')
 
 ### utility functions
 
@@ -246,6 +250,54 @@ async def prov_to_dect(request):
 
     raise web.HTTPFound('/')
 
+# --------------------------------------------------------------------------- #
+# OMNIDAT node API (token-authed, NOT SAML). Mirrors the edge worker so the
+# shadydect daemon (daemon/steak.py) can point at either backend. The *77 flow
+# validates + binds a handset here; the portal is the enrollment source of truth.
+# --------------------------------------------------------------------------- #
+import hmac as _hmac
+
+def _check_api_token(request):
+    tok = request.headers.get('X-Steak-Token', '')
+    return bool(api_token) and _hmac.compare_digest(tok, api_token)
+
+async def api_extension(request):
+    if not _check_api_token(request):
+        return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
+    if dbconn is None:
+        await init_db_pool()
+    extn = int(request.match_info['extn'])
+    row = await dbconn.fetchrow(
+        "SELECT extn,name,provisioned,switch,ipui,handset_id FROM registered_extensions WHERE extn=$1", extn)
+    if not row:
+        return web.json_response({'ok': False, 'error': 'not-enrolled'}, status=404)
+    return web.json_response({'ok': True, **dict(row)})
+
+async def api_provision(request):
+    if not _check_api_token(request):
+        return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
+    if dbconn is None:
+        await init_db_pool()
+    data = await request.json()
+    extn = int(data['extn'])
+    row = await dbconn.fetchrow("SELECT extn,name,auth_code FROM registered_extensions WHERE extn=$1", extn)
+    if not row:
+        return web.json_response({'ok': False, 'error': 'not-enrolled'}, status=404)
+    auth = row['auth_code'] or gen_sip_pw()
+    await dbconn.execute(
+        "UPDATE registered_extensions SET provisioned='t',switch=$2,ipui=$3,handset_id=$4,auth_code=$5 WHERE extn=$1",
+        extn, DECT_SWITCH, data.get('ipui'), data.get('handset_id'), auth)
+    return web.json_response({'ok': True, 'extension': str(extn), 'name': row['name'], 'auth_code': auth})
+
+async def api_registry(request):
+    if not _check_api_token(request):
+        return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
+    if dbconn is None:
+        await init_db_pool()
+    rows = await dbconn.fetch(
+        "SELECT extn,name,provisioned,switch,ipui,handset_id FROM registered_extensions ORDER BY extn")
+    return web.json_response({'ok': True, 'extensions': [dict(r) for r in rows]})
+
 async def saml_acs(request):
     req_data = saml_req_data.copy()
     req_data['get_data'] = dict(request.query)
@@ -303,6 +355,10 @@ if __name__ == '__main__':
     app.add_routes([web.post('/publish_extn', publish_extn)])
     app.add_routes([web.post('/prov_to_sip', prov_to_sip)])
     app.add_routes([web.post('/prov_to_dect', prov_to_dect)])  # OMNIDAT / omniDECT
+    # OMNIDAT node API (token-authed), parity with the edge worker
+    app.add_routes([web.get('/api/extension/{extn}', api_extension)])
+    app.add_routes([web.post('/api/provision', api_provision)])
+    app.add_routes([web.get('/api/registry', api_registry)])
 
     app.add_routes([web.static('/static', os.path.join(os.getcwd(), 'static'))])
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=steak.omnidat.cc — omniDECT Enrollment & Activation Kit (steakweb, SAML)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=steak
+WorkingDirectory=/opt/steak
+ExecStart=/opt/steak/.venv/bin/python steakweb.py
+Restart=on-failure
+RestartSec=3
+# config.json (SAML settings, Postgres DSN, cookiekey, api_token) lives here:
+Environment=STEAK_CONFIG=/opt/steak/config.json
+
+[Install]
+WantedBy=multi-user.target
