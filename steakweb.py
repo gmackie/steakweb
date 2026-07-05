@@ -369,7 +369,14 @@ if __name__ == '__main__':
 
     app.add_routes([web.static('/static', os.path.join(os.getcwd(), 'static'))])
 
-    asyncio.run(init_saml_settings())
+    # OMNIDAT staging: skip_saml_init lets the node run before the SAML IdP SP is
+    # registered — the token-authed node API (/api/*) and the public /directory
+    # serve normally; only the SAML-gated human UI is unavailable until the IdP
+    # metadata is filled in and this flag is removed.
+    if config.get('skip_saml_init'):
+        print('WARNING: skip_saml_init set — SAML human UI disabled; API + directory only')
+    else:
+        asyncio.run(init_saml_settings())
 
     try:
         os.unlink(socketpath)
