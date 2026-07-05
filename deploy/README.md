@@ -4,6 +4,25 @@ The SAML-authenticated portal is this Python/aiohttp app (upstream steakweb).
 Unlike the zero-infra edge worker (`shadydect:web/steak/`), it needs three things:
 a Postgres DB, a SAML IdP, and a node to run on.
 
+## Status: STAGED on hetzner-master (API-only, SAML UI pending IdP)
+The app is deployed + running on **hetzner-master** at `/opt/steak` (user `steak`,
+`.venv`), as systemd unit **`steak-omnidat`**, bound to the unix socket
+`/opt/steak/steak.sock`. It is on the **shared OMNIDAT Postgres** (`steak` schema)
+and started with **`skip_saml_init: true`** — so the token-authed node API
+(`/api/*`) and public `/directory` serve now (verified end-to-end: enroll →
+provision binds IPUI → auth_code), while the SAML human UI waits on the IdP.
+
+**To finish go-live:**
+1. Register the SAML SP in the OMNIDAT Authentik IdP (see §2 below); put the real
+   metadata URL in `/opt/steak/config.json` (`idp_metadata`) and remove
+   `skip_saml_init`. `systemctl restart steak-omnidat`.
+2. Front the unix socket with a reverse proxy + a **Cloudflare Tunnel** to
+   `steak.omnidat.cc` (omnidat.cc is a Cloudflare zone, not the forge edge proxy —
+   same tunnel pattern omnidat uses for its DB). Then cut the `steak.omnidat.cc`
+   DNS/route from the edge worker to the tunnel.
+The `api_token` for the node API is in `/opt/steak/config.json` (set the daemon's
+`SHADYDECT_STEAK_API_TOKEN` to match at cutover).
+
 ## 1. Postgres — DONE (shares OMNIDAT's database)
 steak uses **OMNIDAT's shared Postgres** (`fryos_production` on hetzner-master),
 in its **own `steak` schema** so it never touches omnidat/fryos tables. The schema
