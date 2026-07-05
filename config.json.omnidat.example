@@ -1,0 +1,29 @@
+{
+    "_comment": "OMNIDAT / omniDECT deployment of steakweb (steak.omnidat.cc). Copy to config.json and fill secrets. Differs from upstream (Shadytel steak.shady.tel) in host + IdP: OMNIDAT federates via OmniAuth Passkey / ForgeGraph OIDC rather than Shadytel SAML. If you keep SAML, point idp_metadata at the OMNIDAT IdP.",
+    "saml_settings": {
+        "strict": true,
+        "debug": false,
+        "sp": {
+            "entityId": "https://steak.omnidat.cc/saml/service-provider-metadata",
+            "assertionConsumerService": {
+                "url": "https://steak.omnidat.cc/saml/acs",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            },
+            "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+        },
+        "security": {
+            "wantMessagesSigned": true,
+            "wantAssertionsSigned": true
+        }
+    },
+    "saml_req_data": {
+        "https": "on",
+        "http_host": "steak.omnidat.cc",
+        "server_port": "443",
+        "script_name": "/"
+    },
+    "socket_path": "path to activation-server socket",
+    "dbconnstr": "postgresql://CONNECTION STRING (OMNIDAT shared postgres)",
+    "cookiekey": "32 base64-encoded bytes",
+    "idp_metadata": "https://identity.omnidat.cc/application/saml/steak/metadata/"
+}

@@ -218,6 +218,34 @@ async def prov_to_sip(request):
 
     raise web.HTTPFound('/')
 
+# OMNIDAT / omniDECT: provision an extension onto the DECT switch (20), binding
+# it to a cordless handset by IPUI. Parallel to prov_to_sip; the shadydect FP
+# (dect/fp/registry.py) is the endpoint. See github.com/<you>/shadydect.
+DECT_SWITCH = 20
+
+async def prov_to_dect(request):
+    data = await request.post()
+    session = await aiohttp_session.get_session(request)
+    check_session_exp(session)
+    if dbconn is None:
+        await init_db_pool()
+
+    ipui = data.get('ipui') or None      # DECT International Portable User Identity (hex)
+    if check_auth_isadmin(session):
+        n = await dbconn.execute(
+            "UPDATE registered_extensions SET auth_code = $2, switch = $3, ipui = $4, provisioned = 't' WHERE extn = $1",
+            int(data['extn']), gen_sip_pw(), DECT_SWITCH, ipui)
+    else:
+        n = await dbconn.execute(
+            "UPDATE registered_extensions SET auth_code = $2, switch = $3, ipui = $4, provisioned = 't' WHERE extn = $1 AND userid = $5",
+            int(data['extn']), gen_sip_pw(), DECT_SWITCH, ipui, int(session['uid']))
+
+    if n != 'UPDATE 1':
+        session['error'] = 'Could not activate DECT service; contact support'
+        print(f'While applying DECT: {n}')
+
+    raise web.HTTPFound('/')
+
 async def saml_acs(request):
     req_data = saml_req_data.copy()
     req_data['get_data'] = dict(request.query)
@@ -274,6 +302,7 @@ if __name__ == '__main__':
     app.add_routes([web.post('/create_extn', create_extn)])
     app.add_routes([web.post('/publish_extn', publish_extn)])
     app.add_routes([web.post('/prov_to_sip', prov_to_sip)])
+    app.add_routes([web.post('/prov_to_dect', prov_to_dect)])  # OMNIDAT / omniDECT
 
     app.add_routes([web.static('/static', os.path.join(os.getcwd(), 'static'))])
 
