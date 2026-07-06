@@ -164,6 +164,12 @@ async def create_extn(request):
     if data['type'] == 'sip':
         switch = 11
         authcode = gen_sip_pw()
+    elif data['type'] == 'dect':
+        # OMNIDAT / omniDECT: assign the DECT switch (20) now; the handset binds
+        # later via *77 (prov_to_dect sets provisioned + ipui). The activation
+        # code is what the camper enters at *77 to claim this extension.
+        switch = DECT_SWITCH
+        authcode = f'{secrets.randbelow(1000000000000):012d}'
     else:
         switch = None
         authcode = f'{secrets.randbelow(1000000000000):012d}'

@@ -43,10 +43,12 @@
           onclick="this.form.submit()">
         </form>
       </td>
-      <td>{% if e["switch"] == 11 %}SIP{% else %}TDM{% endif %}</td>
+      <td>{% if e["switch"] == 11 %}SIP{% elif e["switch"] == 20 %}DECT{% else %}TDM{% endif %}</td>
       <td>
         {% if e["switch"] == 11 %}
           <button onclick="alert('Use the following to configure your SIP client:\n\nServer: sip.shady.tel\nUsername: {{e["extn"]}}\nPassword: {{e["auth_code"]}}')">Get Credentials</button>
+        {% elif e["switch"] == 20 %}
+          <button onclick="alert('To activate your cordless handset:\n\n1. Pair your GAP handset to the nearest omniDECT base.\n2. Dial *77 and enter your activation code:\n\n' + '{{e["auth_code"]}}'.replace(/(\\d{3})(?=\\d)/g, '$1 ') + '\n\n(Extension {{e["extn"]}})')">Get Credentials</button><br />
         {% elif e["auth_code"] %}
           <button onclick="alert('Your activation code is:\n\n' + '{{e["auth_code"]}}'.replace(/(\d{3})(?=\d)/g, '$1 '))">Get Credentials</button><br />
         {% endif %}
@@ -70,8 +72,9 @@
   <br />
   <label for="type">Type:</label>
   <select name="type">
-    <option value="pots" selected>POTS</option>
+    <option value="dect" selected>DECT (cordless handset)</option>
     <option value="sip">SIP</option>
+    <option value="pots">POTS</option>
     <option value="other">Other</option>
   </select>
   <input type="submit" value="Create">
