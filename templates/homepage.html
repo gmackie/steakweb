@@ -1,20 +1,21 @@
 {% extends "site.html" %}
-{% block title %}Shadytel Telephony Enrollment &amp; Activation Kit: My Extensions{% endblock title %}
-{% block headline %}Shadytel Telephony Enrollment &amp; Activation Kit{% endblock headline %}
+{% block title %}omniDECT Enrollment &amp; Activation Kit: My Extensions{% endblock title %}
+{% block headline %}omniDECT Enrollment &amp; Activation Kit{% endblock headline %}
 
 {% block body %}
 <p>Welcome, {{attributes['http://schemas.goauthentik.io/2021/02/saml/username'][0]}}!</p>
 
-<p>This year, Shadytel is inviting you to self-install. For standard service:</p>
+<p>omniDECT gives your cordless handset a number on the camp network. To self-install:</p>
 
-<ul>
-  <li>If you have not already done so, please register an
-      extension below.</li>
-  <li>Locate the nearest Shadystake™ and plug in to an available port. Note that center plugs are for special lines.</li>
-  <li>Lift the receiver and follow the instructions.</li>
-</ul>
+<ol>
+  <li>Register a <strong>DECT</strong> extension below. You'll get an
+      <strong>activation code</strong> (tap <em>Get Credentials</em> to see it).</li>
+  <li>Pair your GAP handset to the nearest <strong>omniDECT</strong> base.</li>
+  <li>On the handset, dial <strong>*77</strong> and enter your activation code.
+      The base binds your handset and reads back your extension.</li>
+</ol>
 
-<p>For help or non-standard service, please come see as at the Shadytel Customer Experience Centre.</p>
+<p>For help or non-standard service, please see the omniDECT service desk.</p>
 
 <h3>My Extensions</h3>
 {% if extensions %}
@@ -46,7 +47,7 @@
       <td>{% if e["switch"] == 11 %}SIP{% elif e["switch"] == 20 %}DECT{% else %}TDM{% endif %}</td>
       <td>
         {% if e["switch"] == 11 %}
-          <button onclick="alert('Use the following to configure your SIP client:\n\nServer: sip.shady.tel\nUsername: {{e["extn"]}}\nPassword: {{e["auth_code"]}}')">Get Credentials</button>
+          <button onclick="alert('Use the following to configure your SIP client:\n\nServer: sip.omnidat.cc\nUsername: {{e["extn"]}}\nPassword: {{e["auth_code"]}}')">Get Credentials</button>
         {% elif e["switch"] == 20 %}
           <button onclick="alert('To activate your cordless handset:\n\n1. Pair your GAP handset to the nearest omniDECT base.\n2. Dial *77 and enter your activation code:\n\n' + '{{e["auth_code"]}}'.replace(/(\\d{3})(?=\\d)/g, '$1 ') + '\n\n(Extension {{e["extn"]}})')">Get Credentials</button><br />
         {% elif e["auth_code"] %}

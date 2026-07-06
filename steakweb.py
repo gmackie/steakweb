@@ -295,6 +295,30 @@ async def api_provision(request):
         extn, DECT_SWITCH, data.get('ipui'), data.get('handset_id'), auth)
     return web.json_response({'ok': True, 'extension': str(extn), 'name': row['name'], 'auth_code': auth})
 
+async def api_activate(request):
+    # omniDECT handset activation: the camper dials the activation number and
+    # enters their activation code on the handset. The node presents that code +
+    # the handset's IPUI here; we bind the matching DECT extension. This is the
+    # code-as-credential flow (vs api_provision, which trusts a chosen extn).
+    if not _check_api_token(request):
+        return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
+    if dbconn is None:
+        await init_db_pool()
+    data = await request.json()
+    code = str(data.get('code', '')).strip()
+    if not code:
+        return web.json_response({'ok': False, 'error': 'no-code'}, status=400)
+    # match an enrolled, not-yet-activated DECT extension by its activation code
+    row = await dbconn.fetchrow(
+        "SELECT extn,name FROM registered_extensions "
+        "WHERE auth_code=$1 AND switch=$2 AND provisioned='f'", code, DECT_SWITCH)
+    if not row:
+        return web.json_response({'ok': False, 'error': 'bad-code'}, status=404)
+    await dbconn.execute(
+        "UPDATE registered_extensions SET provisioned='t',ipui=$2,handset_id=$3 WHERE extn=$1",
+        row['extn'], data.get('ipui'), data.get('handset_id'))
+    return web.json_response({'ok': True, 'extension': str(row['extn']), 'name': row['name']})
+
 async def api_registry(request):
     if not _check_api_token(request):
         return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
@@ -371,6 +395,7 @@ if __name__ == '__main__':
     # OMNIDAT node API (token-authed), parity with the edge worker
     app.add_routes([web.get('/api/extension/{extn}', api_extension)])
     app.add_routes([web.post('/api/provision', api_provision)])
+    app.add_routes([web.post('/api/activate', api_activate)])  # omniDECT code activation
     app.add_routes([web.get('/api/registry', api_registry)])
 
     app.add_routes([web.static('/static', os.path.join(os.getcwd(), 'static'))])
