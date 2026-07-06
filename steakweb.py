@@ -337,8 +337,14 @@ async def api_registry(request):
         return web.json_response({'ok': False, 'error': 'unauthorized'}, status=401)
     if dbconn is None:
         await init_db_pool()
+    # auth_code is included for *provisioned* rows only: post-activation it is
+    # the extension's SIP password (see api_activate rotation), which the
+    # OmniDECT Asterisk needs to render pjsip endpoints. Pre-activation it is
+    # the camper's secret activation code and is never disclosed.
     rows = await dbconn.fetch(
-        "SELECT extn,name,provisioned,switch,ipui,handset_id FROM registered_extensions ORDER BY extn")
+        "SELECT extn,name,provisioned,switch,ipui,handset_id,"
+        "CASE WHEN provisioned THEN auth_code END AS auth_code "
+        "FROM registered_extensions ORDER BY extn")
     return web.json_response({'ok': True, 'extensions': [dict(r) for r in rows]})
 
 async def saml_acs(request):
