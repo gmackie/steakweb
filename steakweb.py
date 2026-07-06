@@ -378,13 +378,19 @@ if __name__ == '__main__':
     else:
         asyncio.run(init_saml_settings())
 
-    try:
-        os.unlink(socketpath)
-    except:
-        pass
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.bind(socketpath)
-    os.chmod(socketpath, 0o666)
-    web.run_app(app, sock=sock)
+    # OMNIDAT: bind a TCP port when listen_port is set (so the ForgeGraph edge
+    # Caddy can reverse-proxy to it), else the upstream unix socket.
+    listen_port = config.get('listen_port')
+    if listen_port:
+        web.run_app(app, host=config.get('listen_host', '0.0.0.0'), port=int(listen_port))
+    else:
+        try:
+            os.unlink(socketpath)
+        except:
+            pass
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(socketpath)
+        os.chmod(socketpath, 0o666)
+        web.run_app(app, sock=sock)
 
 # vim: set ts=4 sw=4 expendtab
