@@ -27,5 +27,6 @@
     "db_schema": "steak",
     "cookiekey": "32 base64-encoded bytes",
     "idp_metadata": "https://identity.omnidat.cc/application/saml/steak/metadata/",
-    "api_token": "shared secret matching the shadydect node SHADYDECT_STEAK_API_TOKEN"
+    "api_token": "shared secret matching the shadydect node SHADYDECT_STEAK_API_TOKEN",
+    "sip_registrar": "sip.omnidat.cc  (central Asterisk; empty/absent = /api/activate returns no SIP creds)"
 }

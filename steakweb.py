@@ -33,6 +33,9 @@ IDP_METADATA = config['idp_metadata']
 # API (parity with the edge worker's API_TOKEN). Human auth stays SAML; the node
 # is a trusted machine caller and presents this token instead.
 api_token = config.get('api_token', '')
+# central Asterisk the DECT nodes register activated extensions to (SIP-FP);
+# empty = don't return SIP creds from /api/activate (extension-only responses)
+sip_registrar = config.get('sip_registrar', '')
 
 ### utility functions
 
@@ -314,10 +317,20 @@ async def api_activate(request):
         "WHERE auth_code=$1 AND switch=$2 AND provisioned='f'", code, DECT_SWITCH)
     if not row:
         return web.json_response({'ok': False, 'error': 'bad-code'}, status=404)
+    # Mint the extension's SIP secret by *rotating* auth_code: the activation
+    # code was a one-time credential the camper keyed on the handset; replacing
+    # it (a) issues the real SIP password and (b) makes the code unreplayable.
+    # The node maps this to sip.SipAccount and registers to sip_registrar
+    # (shadydect ADR 0001, SIP-FP northbound).
+    sip_pw = gen_sip_pw()
     await dbconn.execute(
-        "UPDATE registered_extensions SET provisioned='t',ipui=$2,handset_id=$3 WHERE extn=$1",
-        row['extn'], data.get('ipui'), data.get('handset_id'))
-    return web.json_response({'ok': True, 'extension': str(row['extn']), 'name': row['name']})
+        "UPDATE registered_extensions SET provisioned='t',ipui=$2,handset_id=$3,auth_code=$4 WHERE extn=$1",
+        row['extn'], data.get('ipui'), data.get('handset_id'), sip_pw)
+    resp = {'ok': True, 'extension': str(row['extn']), 'name': row['name']}
+    if sip_registrar:
+        resp['sip_password'] = sip_pw
+        resp['sip_registrar'] = sip_registrar
+    return web.json_response(resp)
 
 async def api_registry(request):
     if not _check_api_token(request):
