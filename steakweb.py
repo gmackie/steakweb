@@ -68,7 +68,7 @@ async def homepage(request):
     if check_auth_isadmin(session):
         rows = await dbconn.fetch("SELECT extn, name, switch, auth_code, publish FROM registered_extensions WHERE provisioned = 't' ORDER BY extn")
     else:
-        rows = await dbconn.fetch("SELECT extn, name, switch, auth_code, publish FROM registered_extensions WHERE userid = $1 ORDER BY extn", int(session['uid']))
+        rows = await dbconn.fetch("SELECT extn, name, switch, auth_code, publish FROM registered_extensions WHERE userid = $1 ORDER BY extn", session['uid'])
 
     # render the template with the list and the status of the last request (from the session)
     context = { 'extensions': rows, 'error': session.get('error', None), 'attributes': session.get('attributes', None) }
@@ -110,7 +110,7 @@ async def rename_extn(request):
     if check_auth_isadmin(session):
         n = await dbconn.execute('UPDATE registered_extensions SET name = $1 WHERE extn = $2', data['name'], int(data['extn']))
     else:
-        n = await dbconn.execute('UPDATE registered_extensions SET name = $1 WHERE extn = $2 AND userid = $3', data['name'], int(data['extn']),int(session['uid']))
+        n = await dbconn.execute('UPDATE registered_extensions SET name = $1 WHERE extn = $2 AND userid = $3', data['name'], int(data['extn']),session['uid'])
 
     if n != 'UPDATE 1':
         session['error'] = 'Could not change directory name; contact support'
@@ -131,7 +131,7 @@ async def delete_extn(request):
     if check_auth_isadmin(session):
         n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1', int(data['extn']))
     else:
-        n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1 AND userid = $2', int(data['extn']), int(session['uid']))
+        n = await dbconn.execute('DELETE FROM registered_extensions WHERE switch IS NULL AND extn = $1 AND userid = $2', int(data['extn']), session['uid'])
 
     if n != 'DELETE 1':
         session['error'] = 'Could not unsubscribe service; contact support'
@@ -169,7 +169,7 @@ async def create_extn(request):
         authcode = f'{secrets.randbelow(1000000000000):012d}'
 
     try:
-        n = await dbconn.execute('INSERT INTO registered_extensions (extn, name, userid, auth_code, publish, switch) VALUES ($1, $2, $3, $4, $5, $6)', extnum, name, int(session['uid']), authcode, publish, switch)
+        n = await dbconn.execute('INSERT INTO registered_extensions (extn, name, userid, auth_code, publish, switch) VALUES ($1, $2, $3, $4, $5, $6)', extnum, name, session['uid'], authcode, publish, switch)
     except asyncpg.UniqueViolationError:
         session['error'] = f'Extension {extnum} is already taken; please choose another'
         raise web.HTTPFound('/')
@@ -191,7 +191,7 @@ async def publish_extn(request):
     if check_auth_isadmin(session):
         n = await dbconn.execute("UPDATE registered_extensions SET publish = $2 WHERE extn = $1", int(data['extn']), data.get('published', '0')== '1')
     else:
-        n = await dbconn.execute("UPDATE registered_extensions SET publish = $2 WHERE extn = $1 AND userid = $3", int(data['extn']), data.get('publish', '1') == '1', int(session['uid']))
+        n = await dbconn.execute("UPDATE registered_extensions SET publish = $2 WHERE extn = $1 AND userid = $3", int(data['extn']), data.get('publish', '1') == '1', session['uid'])
 
     if n != 'UPDATE 1':
         session['error'] = 'Could not change directory name; contact support'
@@ -214,7 +214,7 @@ async def prov_to_sip(request):
     if check_auth_isadmin(session):
         n = await dbconn.execute("UPDATE registered_extensions SET auth_code = $2, switch = 11 WHERE extn = $1", int(data['extn']), gen_sip_pw())
     else:
-        n = await dbconn.execute("UPDATE registered_extensions SET auth_code = $2, switch = 11 WHERE extn = $1 AND userid = $3", int(data['extn']), gen_sip_pw(), int(session['uid']))
+        n = await dbconn.execute("UPDATE registered_extensions SET auth_code = $2, switch = 11 WHERE extn = $1 AND userid = $3", int(data['extn']), gen_sip_pw(), session['uid'])
 
     if n != 'UPDATE 1':
         session['error'] = 'Could not change directory name; contact support'
@@ -242,7 +242,7 @@ async def prov_to_dect(request):
     else:
         n = await dbconn.execute(
             "UPDATE registered_extensions SET auth_code = $2, switch = $3, ipui = $4, provisioned = 't' WHERE extn = $1 AND userid = $5",
-            int(data['extn']), gen_sip_pw(), DECT_SWITCH, ipui, int(session['uid']))
+            int(data['extn']), gen_sip_pw(), DECT_SWITCH, ipui, session['uid'])
 
     if n != 'UPDATE 1':
         session['error'] = 'Could not activate DECT service; contact support'
